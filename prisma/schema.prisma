@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    String @id @default(cuid())
+  email String @unique
+  name  String
+  role  Role   @default(INTERVIEWER)
+  tests Test[]
+
+  @@map("users")
+}
+
+model Test {
+  id         String      @id @default(cuid())
+  title      String
+  userId     String
+  status     TestStatus  @default(DRAFT)
+  accessCode String      @unique
+  createdBy  User        @relation(fields: [userId], references: [id])
+  questions  Question[]
+  candidates Candidate[]
+
+  @@map("tests")
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  content   String
+  timeLimit Int
+  testId    String
+  test      Test     @relation(fields: [testId], references: [id])
+  answers   Answer[]
+
+  @@map("questions")
+}
+
+model Candidate {
+  id        String          @id @default(cuid())
+  name      String
+  testId    String
+  status    InterviewStatus @default(PENDING)
+  startedAt DateTime?
+  endedAt   DateTime?
+  test      Test           @relation(fields: [testId], references: [id])
+  answers   Answer[]
+
+  @@map("candidates")
+}
+
+model Answer {
+  id          String    @id @default(cuid())
+  audioUrl    String
+  transcript  String?
+  score       Float?
+  candidateId String
+  questionId  String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  question    Question  @relation(fields: [questionId], references: [id])
+
+  @@map("answers")
+}
+
+enum Role {
+  ADMIN
+  INTERVIEWER
+}
+
+enum TestStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum InterviewStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
