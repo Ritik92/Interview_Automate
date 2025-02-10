@@ -1,35 +1,26 @@
-import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { z } from 'zod'
+import prisma from '@/lib/prisma';
+import { NextResponse } from 'next/server';
 
-const answerSchema = z.array(
-  z.object({
-    questionId: z.number(),
-    content: z.string().min(1)
-  })
-)
-
-export async function POST(request: Request) {
+export async function GET() {
   try {
-    const body = await request.json()
-    const validated = answerSchema.parse(body.answers)
-    
-    const createdAnswers = await prisma.$transaction(
-      validated.map(answer => 
-        prisma.answer.create({
-          data: {
-            content: answer.content,
-            questionId: answer.questionId
+    const reportData = await prisma.candidate.findUnique({
+      where: { id: "cm6zisdlh0007wewoqi4gwjeh" },
+      include: {
+        test: {
+          include: {
+            questions: true // Get all questions in the test
           }
-        })
-      )
-    )
+        },
+        answers: {
+          include: {
+            question: true // Get question details for each answer
+          }
+        }
+      }
+    });
     
-    return NextResponse.json(createdAnswers)
+    return NextResponse.json(reportData);
   } catch (error) {
-    return NextResponse.json(
-      { error: "Invalid answer format" },
-      { status: 400 }
-    )
+    return NextResponse.json({ error:error }, { status: 500 });
   }
 }

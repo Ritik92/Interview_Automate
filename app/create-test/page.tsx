@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Save, Play, Archive, Clock, Code } from 'lucide-react';
+import { Plus, X, Save, Archive, Code, Clock } from 'lucide-react';
 import { 
   Card,
   CardContent,
@@ -20,16 +20,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import axios from 'axios';
 
 const TestCreator = () => {
   const [test, setTest] = useState({
@@ -42,7 +36,7 @@ const TestCreator = () => {
     content: '',
     timeLimit: 60
   });
-  const [accessCode, setAcessCode] = useState(null);
+  const [accessCode, setAccessCode] = useState(null);
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -79,15 +73,15 @@ const TestCreator = () => {
     }));
   };
 
-  const saveTest = async () => {
-    // Implementation for saving test
-    console.log('Saving test:', test);
-  };
-
-  const generateAccessCode = () => {
-    let code=Math.random().toString(36).substring(2, 8).toUpperCase();
-    setAcessCode(code)
-     
+  const saveTest = async (status) => {
+    try {
+      const testToSave = { ...test, status };
+      const { data } = await axios.post('/api/test', testToSave);
+      setTest(prev => ({ ...prev, status: data.status }));
+      setAccessCode(data.accessCode);
+    } catch (error) {
+      console.error('Error saving test:', error);
+    }
   };
 
   return (
@@ -204,33 +198,25 @@ const TestCreator = () => {
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => generateAccessCode()}>
-              <Code className="w-4 h-4 mr-2" />
-              {accessCode ? `Access Code: ${accessCode}` : 'Generate Access Code'}
-              
-            </Button>
-            <Select
-              value={test.status}
-              onValueChange={(value) => setTest(prev => ({ ...prev, status: value }))}
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="DRAFT">Draft</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="ARCHIVED">Archived</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center space-x-2">
+            {accessCode && (
+              <div className="flex items-center space-x-2">
+                <Code className="w-4 h-4" />
+                <span>Access Code: {accessCode}</span>
+              </div>
+            )}
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              onClick={() => saveTest('DRAFT')}
+            >
               <Archive className="w-4 h-4 mr-2" />
               Save Draft
             </Button>
-            <Button onClick={saveTest}>
+            <Button
+              onClick={() => saveTest('ACTIVE')}
+            >
               <Save className="w-4 h-4 mr-2" />
               Save & Publish
             </Button>

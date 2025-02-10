@@ -1,14 +1,14 @@
 [
   {
-    "question": "What is your name?",
-    "answer": "My name is ritik."
+    "question": "Explain the box model in CSS",
+    "answer": "I don't know answer of this question."
   },
   {
-    "question": "How are you today?",
-    "answer": "And good."
+    "question": "What is the virtual DOM in React?",
+    "answer": "World. Dom is basically like it is a dom."
   },
   {
-    "question": "What is your favorite programming language?",
-    "answer": "My favorite programming language is."
+    "question": "Implement a debounce function in JavaScript",
+    "answer": "Answer to this question."
   }
 ]

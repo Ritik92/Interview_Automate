@@ -1,17 +1,18 @@
 'use client';
-
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { EyeIcon, EyeOffIcon, ArrowRightIcon, UserIcon, PhoneIcon, MailIcon } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
-
+import { EyeIcon, EyeOffIcon, ArrowRightIcon, UserIcon, MailIcon } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 const AuthPage = () => {
   const [isSignIn, setIsSignIn] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    name: '',
+    password: '',
+    role: 'INTERVIEWER'
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -23,63 +24,71 @@ const AuthPage = () => {
     if (isSignIn) {
       try {
         const result = await signIn('credentials', {
-          email,
-          password,
+          email: formData.email,
+          password: formData.password,
           redirect: false,
         });
 
         if (result?.error) {
-          toast.error('Invalid email or password', {
-            style: {
-              border: '1px solid #FF5A5F',
-              padding: '16px',
-              color: '#FF5A5F',
-            },
-            iconTheme: {
-              primary: '#FF5A5F',
-              secondary: '#FFFAEE',
-            },
+          toast({
+            title: "Error",
+            description: "Invalid email or password",
+            variant: "destructive",
           });
           setLoading(false);
           return;
         }
 
         if (result?.ok) {
-          toast.success('Successfully signed in!');
-          router.push('/home');
+          toast({
+            title: "Success",
+            description: "Successfully signed in!",
+          });
+          router.push('/dashboard');
           router.refresh();
         }
       } catch (error) {
-        toast.error('An error occurred during sign in');
+        toast({
+          title: "Error",
+          description: "An error occurred during sign in",
+          variant: "destructive",
+        });
         setLoading(false);
       }
     } else {
-      if (!phone || phone.length < 10) {
-        toast.error('Please enter a valid phone number');
-        setLoading(false);
-        return;
-      }
-
       try {
         const response = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, phone }),
+          body: JSON.stringify(formData),
         });
 
         if (response.ok) {
-          toast.success('Account created successfully! Please sign in.');
+          toast({
+            title: "Success",
+            description: "Account created successfully! Please sign in.",
+          });
           setIsSignIn(true);
-          // Reset form
-          setEmail('');
-          setPassword('');
-          setPhone('');
+          setFormData({
+            email: '',
+            name: '',
+            password: '',
+            role: 'INTERVIEWER'
+          });
         } else {
           const data = await response.json();
-          toast.error(data.message || 'Sign up failed. Please try again.');
+          toast({
+            title: "Error",
+            description: data.message || 'Sign up failed. Please try again.',
+            variant: "destructive",
+          });
         }
       } catch (error) {
-        toast.error('An error occurred during sign up');
+        toast({
+          title: "Error",
+          description: "An error occurred during sign up",
+          variant: "destructive",
+        });
       }
     }
     setLoading(false);
@@ -91,20 +100,18 @@ const AuthPage = () => {
     exit: { opacity: 0, x: 50, transition: { duration: 0.5 } }
   };
 
-  const inputClasses = "w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 outline-none";
-  const iconClasses = "absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400";
+  const inputClasses = "w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 outline-none";
+  const iconClasses = "absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-      <Toaster position="top-center" reverseOrder={false} />
-      
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md"
+        className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md"
       >
         <motion.h1 
-          className="text-3xl font-bold mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600"
+          className="text-3xl font-bold mb-6 text-center text-primary"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -127,8 +134,8 @@ const AuthPage = () => {
               <input
                 type="email"
                 placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 className={`${inputClasses} pl-10`}
                 required
                 disabled={loading}
@@ -142,12 +149,12 @@ const AuthPage = () => {
                 exit={{ opacity: 0, height: 0 }}
                 className="relative"
               >
-                <PhoneIcon className={iconClasses} size={20} />
+                <UserIcon className={iconClasses} size={20} />
                 <input
-                  type="tel"
-                  placeholder="Phone number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  type="text"
+                  placeholder="Full name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   className={`${inputClasses} pl-10`}
                   required
                   disabled={loading}
@@ -160,8 +167,8 @@ const AuthPage = () => {
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                 className={`${inputClasses} pl-10`}
                 required
                 disabled={loading}
@@ -169,7 +176,7 @@ const AuthPage = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
               </button>
@@ -181,27 +188,29 @@ const AuthPage = () => {
               whileTap={{ scale: 0.98 }}
               className={`w-full p-3 rounded-lg flex items-center justify-center space-x-2 ${
                 loading 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
-              } text-white font-medium transition-all duration-300`}
+                  ? 'bg-muted cursor-not-allowed' 
+                  : 'bg-primary hover:bg-primary/90'
+              } text-primary-foreground font-medium transition-all duration-300`}
               disabled={loading}
             >
               <span>{loading ? 'Processing...' : isSignIn ? 'Sign In' : 'Create Account'}</span>
               {!loading && <ArrowRightIcon size={20} />}
             </motion.button>
 
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-muted-foreground">
               {isSignIn ? "Don't have an account?" : "Already have an account?"}{' '}
               <button
                 type="button"
                 onClick={() => {
                   setIsSignIn(!isSignIn);
-                  // Reset form when switching
-                  setEmail('');
-                  setPassword('');
-                  setPhone('');
+                  setFormData({
+                    email: '',
+                    name: '',
+                    password: '',
+                    role: 'INTERVIEWER'
+                  });
                 }}
-                className="text-purple-600 hover:text-purple-700 font-medium transition-colors"
+                className="text-primary hover:text-primary/90 font-medium transition-colors"
               >
                 {isSignIn ? 'Sign Up' : 'Sign In'}
               </button>

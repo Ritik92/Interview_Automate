@@ -1,87 +1,103 @@
-const { PrismaClient } =require('@prisma/client');
-
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-function generateAccessCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
-}
-
 async function main() {
-  // Clear existing data
+  // Clear existing data in safe order
   await prisma.answer.deleteMany();
   await prisma.candidate.deleteMany();
   await prisma.question.deleteMany();
   await prisma.test.deleteMany();
   await prisma.user.deleteMany();
 
-  // Create a user
+  // Create primary user
   const user = await prisma.user.create({
     data: {
-      email: 'interviewer@example.com',
-      name: 'John Doe',
-      role: 'INTERVIEWER',
+      email: 'admin@hirefast.com',
+      name: 'Alex Johnson',
     },
   });
 
-  // Create a test
+  // Create test with nested questions
   const test = await prisma.test.create({
     data: {
-      title: 'Software Engineer Screening',
+      title: 'Frontend Developer Technical Screen',
       userId: user.id,
-      accessCode: generateAccessCode(),
+      accessCode: 'DEV2023', // Fixed code for testing
       status: 'ACTIVE',
+      questions: {
+        create: [
+          {
+            content: 'Explain the box model in CSS',
+            timeLimit: 120
+          },
+          {
+            content: 'What is the virtual DOM in React?',
+            timeLimit: 180
+          },
+          {
+            content: 'Implement a debounce function in JavaScript',
+            timeLimit: 300
+          }
+        ]
+      }
     },
+    include: { questions: true }
   });
 
-  // Create questions
-  const questions = await Promise.all(
-    [1, 2, 3].map((num) =>
-      prisma.question.create({
-        data: {
-          content: `Question ${num}: What is your experience with TypeScript?`,
-          timeLimit: 180,
-          testId: test.id,
-        },
-      })
-    )
-  );
-
-  // Create candidates
-  const candidates = await Promise.all(
-    ['Alice Smith', 'Bob Johnson'].map((name) =>
-      prisma.candidate.create({
-        data: {
-          name: name,
-          testId: test.id,
-          status: 'COMPLETED',
-          startedAt: new Date(),
-          endedAt: new Date(Date.now() + 3600 * 1000),
-        },
-      })
-    )
-  );
-
-  // Create answers
-  for (const candidate of candidates) {
-    for (const question of questions) {
-      await prisma.answer.create({
-        data: {
-          audioUrl: `https://storage.example.com/audio/.mp3`,
-          transcript: 'Sample transcript text...',
-          score: Math.floor(Math.random() * 3) + 3, // Random score between 3-5
-          candidateId: candidate.id,
-          questionId: question.id,
-        },
-      });
-    }
-  }
+  // Create candidates with nested answers
+  const candidates = await Promise.all([
+    // Completed candidate
+    prisma.candidate.create({
+      data: {
+        name: 'Sarah Wilson',
+        testId: test.id,
+        status: 'COMPLETED',
+        startedAt: new Date('2023-08-01T09:00:00Z'),
+        endedAt: new Date('2023-08-01T09:35:00Z'),
+        answers: {
+          create: [
+            {
+              questionId: test.questions[0].id,
+              audioUrl: 'https://storage.example.com/sarah-wilson-q1.mp3',
+              transcript: 'The CSS box model consists of content, padding, border, and margin...',
+              score: 4
+            },
+            {
+              questionId: test.questions[1].id,
+              audioUrl: 'https://storage.example.com/sarah-wilson-q2.mp3',
+              transcript: 'The virtual DOM is a lightweight representation of the real DOM...',
+              score: 5
+            }
+          ]
+        }
+      }
+    }),
+    // In-progress candidate
+    prisma.candidate.create({
+      data: {
+        name: 'James Miller',
+        testId: test.id,
+        status: 'IN_PROGRESS',
+        startedAt: new Date(),
+        answers: {
+          create: {
+            questionId: test.questions[0].id,
+            audioUrl: 'https://storage.example.com/james-miller-q1.mp3',
+            transcript: 'The box model defines how elements are rendered in the browser...',
+            score: 3
+          }
+        }
+      }
+    })
+  ]);
 
   console.log('Seed data created successfully!');
+  console.log(`Test access code: ${test.accessCode}`);
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch(e => {
+    console.error('Seed error:', e);
     process.exit(1);
   })
   .finally(async () => {

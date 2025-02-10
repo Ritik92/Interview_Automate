@@ -11,13 +11,30 @@ ASSEMBLYAI_API_KEY = 'dadc0c26f6a947acb363a7a9e46424f2'
 engine = pyttsx3.init()
 
 def fetch_questions():
-    # Replace with an actual API call if needed
-    questions = [
+    try:
+        # Make POST request with access code
+        response = requests.post(
+            'http://localhost:3000/api/questions',
+            json={'accessCode': 'DEV2023'},  # Use your actual access code parameter name if different
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        if response.status_code == 200:
+            # Extract question content from the API response
+            questions_data = response.json()
+            return [q['content'] for q in questions_data['questions']]
+            
+        print(f"API request failed with status {response.status_code}")
+        
+    except Exception as e:
+        print(f"Error fetching questions: {str(e)}")
+    
+    # Fallback questions if API fails
+    return [
         "What is your name?",
         "How are you today?",
         "What is your favorite programming language?"
     ]
-    return questions
 
 def speak_question(question):
     print(f"Question: {question}")
