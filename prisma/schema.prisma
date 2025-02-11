@@ -8,63 +8,110 @@ datasource db {
 }
 
 model User {
-  id    String @id @default(cuid())
-  email String @unique
-  name  String
-  role  Role   @default(INTERVIEWER)
-  tests Test[]
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  role      Role      @default(INTERVIEWER)
+  tests     Test[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@map("users")
 }
 
 model Test {
-  id         String      @id @default(cuid())
-  title      String
-  userId     String
-  status     TestStatus  @default(DRAFT)
-  accessCode String      @unique
-  createdBy  User        @relation(fields: [userId], references: [id])
-  questions  Question[]
-  candidates Candidate[]
+  id           String         @id @default(cuid())
+  title        String
+  description  String?
+  accessCode   String         @unique // For Raspberry Pi authentication
+  status       TestStatus     @default(ACTIVE)
+  createdById  String
+  createdBy    User          @relation(fields: [createdById], references: [id])
+  questions    Question[]
+  interviews   Interview[]    // Changed from candidates to interviews
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@map("tests")
+  @@index([createdById])
 }
 
 model Question {
-  id        String   @id @default(cuid())
-  content   String
-  timeLimit Int
-  testId    String
-  test      Test     @relation(fields: [testId], references: [id])
-  answers   Answer[]
+  id          String    @id @default(cuid())
+  orderIndex  Int       // To maintain question order
+  content     String
+  timeLimit   Int       // in seconds
+  testId      String
+  test        Test      @relation(fields: [testId], references: [id])
+  responses   Response[] // Changed from answers to responses
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@map("questions")
+  @@index([testId])
+  @@unique([testId, orderIndex]) // Ensures unique ordering within a test
 }
 
-model Candidate {
-  id        String          @id @default(cuid())
-  name      String
-  testId    String
-  status    InterviewStatus @default(PENDING)
-  startedAt DateTime?
-  endedAt   DateTime?
-  test      Test           @relation(fields: [testId], references: [id])
-  answers   Answer[]
+model Interview {
+  id            String          @id @default(cuid())
+  candidateName String
+  testId        String
+  deviceId      String          // Raspberry Pi identifier
+  status        InterviewStatus @default(IN_PROGRESS)
+  startedAt     DateTime       @default(now())
+  completedAt   DateTime?
+  test          Test           @relation(fields: [testId], references: [id])
+  responses     Response[]
+  report        Report?        // One-to-one relation with report
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  @@map("candidates")
+  @@map("interviews")
+  @@index([testId])
+  @@index([deviceId])
 }
 
-model Answer {
+model Response {
+  id           String    @id @default(cuid())
+  audioUrl     String    // URL to stored audio file
+  transcript   String    // Required now since Pi handles transcription
+  interviewId  String
+  questionId   String
+  interview    Interview @relation(fields: [interviewId], references: [id])
+  question     Question  @relation(fields: [questionId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("responses")
+  @@index([interviewId])
+  @@index([questionId])
+}
+
+model Report {
   id          String    @id @default(cuid())
-  audioUrl    String
-  transcript  String?
-  score       Float?
-  candidateId String
-  questionId  String
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
-  question    Question  @relation(fields: [questionId], references: [id])
+  interviewId String    @unique  // One-to-one with interview
+  interview   Interview @relation(fields: [interviewId], references: [id])
+  scores      Score[]   // One-to-many with scores
+  totalScore  Float
+  feedback    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  @@map("answers")
+  @@map("reports")
+}
+
+model Score {
+  id          String    @id @default(cuid())
+  reportId    String
+  report      Report    @relation(fields: [reportId], references: [id])
+  questionId  String
+  score       Float
+  feedback    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("scores")
+  @@index([reportId])
 }
 
 enum Role {
@@ -80,8 +127,8 @@ enum TestStatus {
 }
 
 enum InterviewStatus {
-  PENDING
   IN_PROGRESS
   COMPLETED
+  FAILED      // In case of technical issues
   CANCELLED
 }

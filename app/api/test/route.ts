@@ -2,53 +2,109 @@ import prisma from '@/lib/prisma';
 import { TestStatus } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
+type QuestionInput = {
+  content: string;
+  timeLimit: number;
+  orderIndex?: number;
+};
+
+type CreateTestInput = {
+  title: string;
+  description?: string;
+  status?: TestStatus;
+  questions: QuestionInput[];
+};
+
 export async function POST(req: NextRequest) {
   try {
-    const data = await req.json();
-    let session = { user: { id: 'cm6zg577r0000wewo6h93i82x' } };
+    const data = await req.json() as CreateTestInput;
+    let session = { user: { id: 'cm70xj9090002we40c76u9foh' } }; // Replace with your auth logic
 
-    if (!data.title || !data.questions?.length) {
+    // Validate required fields
+    if (!data.title?.trim()) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Test title is required' },
         { status: 400 }
       );
     }
 
-    // Generate consistent access code for testing
-    const accessCode = process.env.NODE_ENV === 'test' 
-      ? 'TEST123' 
-      : Math.random().toString(36).substring(2, 8).toUpperCase();
+    if (!Array.isArray(data.questions) || data.questions.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one question is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate questions
+    const invalidQuestions = data.questions.filter(
+      q => !q.content?.trim() || typeof q.timeLimit !== 'number' || q.timeLimit <= 0
+    );
+
+    if (invalidQuestions.length > 0) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid questions found',
+          details: 'Each question must have content and a positive time limit'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Generate access code
+    const accessCode = generateAccessCode();
 
     const test = await prisma.$transaction(async (tx) => {
-      const testData: any = {
-        title: data.title,
-        status: data.status,
+      // Check if access code is unique
+      const existingTest = await tx.test.findUnique({
+        where: { accessCode }
+      });
+
+      if (existingTest) {
+        throw new Error('Access code collision, please try again');
+      }
+
+      const testData = {
+        title: data.title.trim(),
+        description: data.description?.trim(),
+        status: data.status || 'DRAFT',
         accessCode,
-        userId: session.user.id,
+        createdById: session.user.id,
         questions: {
-          create: data.questions.map((q: any) => ({
-            content: q.content,
-            timeLimit: q.timeLimit
+          create: data.questions.map((q: QuestionInput, index: number) => ({
+            content: q.content.trim(),
+            timeLimit: q.timeLimit,
+            orderIndex: q.orderIndex ?? index + 1 // Use provided orderIndex or generate sequential
           }))
         }
       };
 
-      // For testing, use fixed ID if needed
+      // For testing purposes
       if (process.env.NODE_ENV === 'test') {
-        testData.id = 'fixed-test-id';
+        (testData as any).id = 'fixed-test-id';
       }
 
       const newTest = await tx.test.create({
         data: testData,
-        include: { questions: true }
+        include: {
+          questions: {
+            orderBy: {
+              orderIndex: 'asc'
+            }
+          }
+        }
       });
 
       return newTest;
     });
 
-    return NextResponse.json(test);
+    return NextResponse.json({
+      message: 'Test created successfully',
+      test
+    });
+
   } catch (error) {
     console.error('Test creation error:', error);
+
     return NextResponse.json(
       { error: 'Failed to create test' },
       { status: 500 }
@@ -56,3 +112,58 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Helper function to generate access code
+function generateAccessCode(length: number = 6): string {
+  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed similar-looking characters
+  let code = '';
+  
+  do {
+    code = Array.from(
+      { length }, 
+      () => characters.charAt(Math.floor(Math.random() * characters.length))
+    ).join('');
+  } while (code.length !== length);
+
+  return code;
+}
+export async function GET(req: NextRequest) {
+  try {
+    let session = { user: { id: 'cm70xj8tz0001we40y8m2p2l3' } }; // Replace with your auth logic
+    
+    const tests = await prisma.test.findMany({
+      where: {
+        createdById: 'cm70xj8tz0001we40y8m2p2l3',
+      },
+      include: {
+        questions: {
+          select: {
+            id: true,
+            content: true,
+            timeLimit: true,
+          },
+          orderBy: {
+            orderIndex: 'asc',
+          },
+        },
+        _count: {
+          select: {
+            interviews: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json({
+      tests,
+    });
+  } catch (error) {
+    console.error('Error fetching tests:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch tests' },
+      { status: 500 }
+    );
+  }
+}
