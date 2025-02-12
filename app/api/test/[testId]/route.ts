@@ -1,19 +1,29 @@
+import { authOptions } from '@/auth.config';
 import prisma from '@/lib/prisma';
 import { TestStatus } from '@prisma/client';
+import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { testId: string } }
+    { params }: { params: any }
   ) {
     try {
-      let session = { user: { id: 'cm70xj8tz0001we40y8m2p2l3' } }; // Replace with your auth logic
+      
+      const session = await getServerSession(authOptions);
+      if (!session || !session.user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
       const data = await req.json();
   
       // Validate the test belongs to the user
       const test = await prisma.test.findFirst({
         where: {
           id: params.testId,
+          //@ts-ignore
           createdById: session.user.id,
         },
       });
@@ -21,7 +31,7 @@ export async function PATCH(
       if (!test) {
         return NextResponse.json(
           { error: 'Test not found' },
-          { status: 404 }
+          { status: 401 }
         );
       }
   

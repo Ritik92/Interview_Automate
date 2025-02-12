@@ -9,7 +9,7 @@ export default function DashboardPage() {
     }
 
     if (status === 'unauthenticated') {
-        redirect('/api/auth/signin');
+        redirect('/auth/signin');
     }
 
     return (

@@ -162,7 +162,8 @@ const TestCreator = () => {
       <Card className="mb-8">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Create New Test</span>
+            <span>Create New Test</span> 
+            {/* @ts-ignore */}
             <Badge variant={test.status === 'DRAFT' ? "secondary" : "success"}>
               {test.status}
             </Badge>

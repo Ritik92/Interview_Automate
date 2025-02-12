@@ -17,6 +17,7 @@ async function main() {
         data: {
             email: 'admin@company.com',
             name: 'Admin User',
+            password: 'admin123',
             role: 'ADMIN',
         },
     });
@@ -25,6 +26,7 @@ async function main() {
         data: {
             email: 'sarah.tech@company.com',
             name: 'Sarah Smith',
+            password: 'sarah123',
             role: 'INTERVIEWER',
         },
     });
@@ -33,6 +35,7 @@ async function main() {
         data: {
             email: 'john.dev@company.com',
             name: 'John Davis',
+            password: 'sarah123',
             role: 'INTERVIEWER',
         },
     });

@@ -28,55 +28,17 @@ import { Progress } from "@/components/ui/progress";
 import { 
   AlertCircle, 
   Download,
-  MessageSquare,
-  Star,
-  User,
   Clock
 } from 'lucide-react';
 import axios from 'axios';
 import { useParams } from 'next/navigation';
 
-type Score = {
-  id: string;
-  questionId: string;
-  score: number;
-  feedback?: string;
-};
-
-type Report = {
-  id: string;
-  totalScore: number;
-  feedback?: string;
-  scores: Score[];
-  interview: {
-    id: string;
-    candidateName: string;
-    startedAt: string;
-    completedAt: string;
-    status: string;
-    responses: Array<{
-      id: string;
-      questionId: string;
-      transcript: string;
-      audioUrl: string;
-    }>;
-  };
-};
-
-type Question = {
-  id: string;
-  content: string;
-  timeLimit: number;
-  orderIndex: number;
-};
-
 const TestReports = () => {
   const params = useParams();
-  const [reports, setReports] = useState<Report[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [reports, setReports] = useState([]);
+  const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedReport, setExpandedReport] = useState<string | null>(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchReports();
@@ -84,8 +46,26 @@ const TestReports = () => {
 
   const fetchReports = async () => {
     try {
-      const { data } = await axios.get(`/api/test/cm70xjc0t000cwe405qufcrdi/reports`);
-      setReports(data.reports);
+      const { data } = await axios.get(`/api/test/${params.testId}/reports`);
+      
+      // Process the reports to normalize score mappings
+      const processedReports = data.reports.map(report => {
+        const normalizedScores = report.scores.map((score, index) => {
+          // Find the corresponding question based on index
+          const questionId = data.questions[index]?.id;
+          return {
+            ...score,
+            normalizedQuestionId: questionId
+          };
+        });
+
+        return {
+          ...report,
+          scores: normalizedScores
+        };
+      });
+
+      setReports(processedReports);
       setQuestions(data.questions);
       setError(null);
     } catch (err) {
@@ -96,17 +76,22 @@ const TestReports = () => {
     }
   };
 
-  const getScoreColor = (score: number) => {
+  const getScoreColor = (score) => {
     if (score >= 8) return 'text-green-600';
     if (score >= 6) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const formatDuration = (start: string, end: string) => {
+  const formatDuration = (start, end) => {
     const duration = new Date(end).getTime() - new Date(start).getTime();
     const minutes = Math.floor(duration / 1000 / 60);
     const seconds = Math.floor((duration / 1000) % 60);
     return `${minutes}m ${seconds}s`;
+  };
+
+  const findMatchingScore = (report, questionId) => {
+    if (!report?.scores) return null;
+    return report.scores.find(score => score.normalizedQuestionId === questionId);
   };
 
   if (loading) {
@@ -154,17 +139,13 @@ const TestReports = () => {
                 <AccordionItem key={report.id} value={report.id}>
                   <AccordionTrigger>
                     <div className="flex items-center justify-between w-full pr-4">
-                      <div className="flex items-center space-x-4">
-                        <User className="w-4 h-4" />
-                        <span>{report.interview.candidateName}</span>
+                      <div className="flex items-center">
+                        <span className="font-medium">{report.interview.candidateName}</span>
                       </div>
-                      <div className="flex items-center space-x-8">
-                        <div className="flex items-center space-x-2">
-                          <Star className="w-4 h-4" />
-                          <span className={getScoreColor(report.totalScore)}>
-                            {report.totalScore.toFixed(1)}
-                          </span>
-                        </div>
+                      <div className="flex items-center space-x-4">
+                        <span className={getScoreColor(report.totalScore)}>
+                          {report.totalScore.toFixed(1)}
+                        </span>
                         <Badge>
                           {new Date(report.interview.completedAt).toLocaleDateString()}
                         </Badge>
@@ -192,17 +173,19 @@ const TestReports = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Overall Feedback</h4>
-                        <p className="text-sm text-muted-foreground">{report.feedback}</p>
-                      </div>
+                      {report.feedback && (
+                        <div className="space-y-2">
+                          <h4 className="font-medium">Overall Feedback</h4>
+                          <p className="text-sm text-muted-foreground">{report.feedback}</p>
+                        </div>
+                      )}
 
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Question</TableHead>
                             <TableHead>Response</TableHead>
-                            <TableHead>Score</TableHead>
+                            <TableHead className="w-24">Score</TableHead>
                             <TableHead>Feedback</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -211,9 +194,8 @@ const TestReports = () => {
                             const response = report.interview.responses.find(
                               r => r.questionId === question.id
                             );
-                            const score = report.scores.find(
-                              s => s.questionId === question.id
-                            );
+                            const score = findMatchingScore(report, question.id);
+                            
                             return (
                               <TableRow key={question.id}>
                                 <TableCell className="align-top">
@@ -226,8 +208,8 @@ const TestReports = () => {
                                 </TableCell>
                                 <TableCell>
                                   <div className="space-y-2">
-                                    <p className="text-sm">{response?.transcript}</p>
-                                    {response?.audioUrl && (
+                                    <p className="text-sm">{response?.transcript || 'No response'}</p>
+                                    {response?.audioUrl && !response.audioUrl.startsWith('file://') && (
                                       <audio controls className="w-full">
                                         <source src={response.audioUrl} type="audio/mpeg" />
                                       </audio>
@@ -240,9 +222,11 @@ const TestReports = () => {
                                   </span>
                                 </TableCell>
                                 <TableCell className="align-top">
-                                  <p className="text-sm text-muted-foreground">
-                                    {score?.feedback}
-                                  </p>
+                                  {score?.feedback && (
+                                    <p className="text-sm text-muted-foreground">
+                                      {score.feedback}
+                                    </p>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             );

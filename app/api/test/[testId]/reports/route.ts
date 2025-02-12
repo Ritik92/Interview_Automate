@@ -1,5 +1,7 @@
 // app/api/tests/[testId]/reports/route.ts
+import { authOptions } from '@/auth.config';
 import prisma from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
@@ -7,12 +9,13 @@ export async function GET(
   { params }: { params: any}
 ) {
   try {
-    let session = { user: { id: 'cm70xj8tz0001we40y8m2p2l3' } }; // Replace with your auth logic
+    const session = await getServerSession(authOptions); // Replace with your auth logic
 
     // First verify the test belongs to the user
     const test = await prisma.test.findFirst({
       where: {
-        id:'cm70xj96h0004we40iwa7jy06',
+        id: params.testId,
+        //@ts-ignore
         createdById: session.user.id,
       },
       include: {
@@ -41,7 +44,7 @@ export async function GET(
     const reports = await prisma.report.findMany({
       where: {
         interview: {
-          testId: 'cm70xj96h0004we40iwa7jy06',
+          testId: test.id,
           status: 'COMPLETED',
         },
       },

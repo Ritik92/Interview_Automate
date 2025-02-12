@@ -119,7 +119,7 @@ const TestList = () => {
       </div>
     );
   }
-
+  
   return (
     <motion.div
       className="max-w-6xl mx-auto p-6"
@@ -131,7 +131,7 @@ const TestList = () => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Your Tests</CardTitle>
-            <Button onClick={() => router.push('/create-test')}>
+            <Button onClick={() => router.push('/test/create-test')}>
               <Plus className="w-4 h-4 mr-2" />
               Create New Test
             </Button>
@@ -166,9 +166,10 @@ const TestList = () => {
               </TableHeader>
               <TableBody>
                 {tests.map((test) => (
-                  <TableRow key={test.id}>
+                  
+                  <TableRow onClick={() => router.push(`/test/${test.id}/report`)} key={test.id}>
                     <TableCell className="font-medium">{test.title}</TableCell>
-                    <TableCell>
+                    <TableCell> {/* @ts-ignore */}
                       <Badge variant={getStatusColor(test.status)}>
                         {test.status}
                       </Badge>

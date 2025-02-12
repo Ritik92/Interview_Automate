@@ -1,5 +1,7 @@
+import { authOptions } from '@/auth.config';
 import prisma from '@/lib/prisma';
 import { TestStatus } from '@prisma/client';
+import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 type QuestionInput = {
@@ -18,7 +20,13 @@ type CreateTestInput = {
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json() as CreateTestInput;
-    let session = { user: { id: 'cm70xj9090002we40c76u9foh' } }; // Replace with your auth logic
+    const session = await getServerSession(authOptions); //@ts-ignore
+    if (!session?.user?.id) {
+      return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+      );
+    }
 
     // Validate required fields
     if (!data.title?.trim()) {
@@ -67,7 +75,7 @@ export async function POST(req: NextRequest) {
         title: data.title.trim(),
         description: data.description?.trim(),
         status: data.status || 'DRAFT',
-        accessCode,
+        accessCode,  //@ts-ignore
         createdById: session.user.id,
         questions: {
           create: data.questions.map((q: QuestionInput, index: number) => ({
@@ -128,11 +136,17 @@ function generateAccessCode(length: number = 6): string {
 }
 export async function GET(req: NextRequest) {
   try {
-    let session = { user: { id: 'cm70xj8tz0001we40y8m2p2l3' } }; // Replace with your auth logic
+    const session = await getServerSession(authOptions);  //@ts-ignore
+    if (!session?.user?.id) {
+      return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+      );
+    } // Replace with your auth logic
     
     const tests = await prisma.test.findMany({
-      where: {
-        createdById: 'cm70xj8tz0001we40y8m2p2l3',
+      where: {  //@ts-ignore
+        createdById: session?.user.id,
       },
       include: {
         questions: {
