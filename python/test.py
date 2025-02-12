@@ -145,6 +145,7 @@ def submit_response(interview_id, question_id, audio_url, transcript):
 def update_interview_status(interview_id, status, candidate_name=None):
     try:
         data = {
+            'interviewId': interview_id,  # Changed to include interview_id in body
             'status': status,
             'deviceId': DEVICE_ID
         }
@@ -152,7 +153,7 @@ def update_interview_status(interview_id, status, candidate_name=None):
             data['candidateName'] = candidate_name
             
         response = requests.patch(
-            f'{API_BASE_URL}/interviews/{interview_id}',
+            f'{API_BASE_URL}/interviews',  # Changed route to /interviews
             json=data,
             headers={'Content-Type': 'application/json'}
         )
@@ -162,7 +163,31 @@ def update_interview_status(interview_id, status, candidate_name=None):
     except Exception as e:
         print(f"Error updating interview status: {str(e)}")
         return False
-
+def generate_report(interview_id):
+    try:
+        response = requests.post(
+            f'{API_BASE_URL}/reports',
+            json={
+                'interviewId': interview_id,
+                'deviceId': DEVICE_ID
+            },
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        if response.status_code == 200:
+            report = response.json()
+            print("\n=== Interview Report Generated ===")
+            print(f"Total Score: {report['totalScore']:.1f}/10")
+            print("\nFeedback:")
+            print(report['feedback'])
+            return True
+            
+        print(f"Failed to generate report: {response.json()['error']}")
+        return False
+        
+    except Exception as e:
+        print(f"Error generating report: {str(e)}")
+        return False    
 def main():
     print("=== Interview Recording System ===")
     access_code = input("Please enter the test access code: ")
@@ -199,14 +224,21 @@ def main():
             # For demo purposes, using local file path as audio URL
             audio_url = f"file://{os.path.abspath(filename)}"
             
-            if not submit_response(session.interview_id, question['id'], audio_url, transcript):
-                print("Failed to submit response, but continuing with interview...")
+            
             
             print(f"\nTranscript: {transcript}\n")
             print("-" * 50)
+
+            if not submit_response(session.interview_id, question['id'], audio_url, transcript):
+                print("Failed to submit response, but continuing with interview...")
         
         if update_interview_status(session.interview_id, 'COMPLETED'):
             print("\nInterview completed successfully!")
+            print("\nGenerating interview report...")
+            if generate_report(session.interview_id):
+                print("\nReport generated successfully!")
+            else:
+                print("\nFailed to generate report")
         else:
             print("\nInterview completed but failed to update final status")
             
