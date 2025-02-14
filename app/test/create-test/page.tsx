@@ -1,11 +1,13 @@
 'use client'
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Save, Archive, Code, Clock, AlertCircle } from 'lucide-react';
+import { 
+  Plus, X, Save, Archive, Code, Clock, 
+  AlertCircle, FileText, Timer, Settings 
+} from 'lucide-react';
 import { 
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -25,24 +27,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import axios from 'axios';
-import { TestStatus } from '@prisma/client';
-
-type Question = {
-  id: string;
-  content: string;
-  timeLimit: number;
-  orderIndex: number;
-};
-
-type Test = {
-  title: string;
-  description?: string;
-  status: TestStatus;
-  questions: Question[];
-};
 
 const TestCreator = () => {
-  const [test, setTest] = useState<Test>({
+  const [test, setTest] = useState({
     title: '',
     description: '',
     status: 'DRAFT',
@@ -54,40 +41,20 @@ const TestCreator = () => {
     timeLimit: 60
   });
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [accessCode, setAccessCode] = useState<string | null>(null);
-
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.6, staggerChildren: 0.2 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0 }
-  };
-
-  const validateQuestion = (question: typeof currentQuestion) => {
-    if (!question.content.trim()) {
-      return 'Question content is required';
-    }
-    if (question.timeLimit < 30) {
-      return 'Time limit must be at least 30 seconds';
-    }
-    if (question.timeLimit > 300) {
-      return 'Time limit cannot exceed 300 seconds';
-    }
-    return null;
-  };
+  const [accessCode, setAccessCode] = useState(null);
 
   const addQuestion = () => {
-    const validationError = validateQuestion(currentQuestion);
+    const validationError = !currentQuestion.content.trim() 
+      ? 'Question content is required'
+      : currentQuestion.timeLimit < 30 
+      ? 'Time limit must be at least 30 seconds'
+      : currentQuestion.timeLimit > 300 
+      ? 'Time limit cannot exceed 300 seconds'
+      : null;
+
     if (validationError) {
       setError(validationError);
       return;
@@ -109,17 +76,16 @@ const TestCreator = () => {
     setIsDialogOpen(false);
   };
 
-  const removeQuestion = (index: number) => {
+  const removeQuestion = (index) => {
     setTest(prev => ({
       ...prev,
-      questions: prev.questions.filter((_, i) => i !== index).map((q, i) => ({
-        ...q,
-        orderIndex: i + 1
-      }))
+      questions: prev.questions
+        .filter((_, i) => i !== index)
+        .map((q, i) => ({ ...q, orderIndex: i + 1 }))
     }));
   };
 
-  const saveTest = async (status: TestStatus) => {
+  const saveTest = async (status) => {
     if (!test.title.trim()) {
       setError('Test title is required');
       return;
@@ -154,184 +120,210 @@ const TestCreator = () => {
 
   return (
     <motion.div
-      className="max-w-4xl mx-auto p-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
+      className="max-w-5xl mx-auto p-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
     >
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Create New Test</span> 
-            {/* @ts-ignore */}
-            <Badge variant={test.status === 'DRAFT' ? "secondary" : "success"}>
+      <Card className="bg-white shadow-lg border-0">
+        <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="text-2xl font-bold text-gray-900">Create New Test</CardTitle>
+              <p className="text-gray-500 mt-1">Design your interview questions and settings</p>
+            </div>
+            <Badge className={`${test.status === 'DRAFT' ? 'bg-gray-200 text-gray-700' : 'bg-green-100 text-green-700'} px-3`}>
               {test.status}
             </Badge>
-          </CardTitle>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="title">Test Title</Label>
-              <Input
-                id="title"
-                value={test.title}
-                onChange={(e) => setTest(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Enter test title"
-                className="w-full mt-2"
-              />
+
+        <CardContent className="p-6 space-y-8">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <FileText className="w-5 h-5 text-blue-600 mr-2" />
+                  <Label htmlFor="title" className="font-semibold text-gray-900">Test Title</Label>
+                </div>
+                <Input
+                  id="title"
+                  value={test.title}
+                  onChange={(e) => setTest(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Enter test title"
+                  className="mt-2 bg-white"
+                />
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
-                id="description"
-                value={test.description}
-                onChange={(e) => setTest(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Enter test description"
-                className="mt-2"
-              />
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <Settings className="w-5 h-5 text-blue-600 mr-2" />
+                  <Label htmlFor="description" className="font-semibold text-gray-900">Description</Label>
+                </div>
+                <Textarea
+                  id="description"
+                  value={test.description}
+                  onChange={(e) => setTest(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter test description"
+                  className="mt-2 bg-white"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Questions</h3>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Question
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Question</DialogTitle>
-                    <DialogDescription>
-                      Create a new question for your test. Questions must have content and a time limit between 30-300 seconds.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="question">Question Content</Label>
-                      <Textarea
-                        id="question"
-                        value={currentQuestion.content}
-                        onChange={(e) => setCurrentQuestion(prev => ({
-                          ...prev,
-                          content: e.target.value
-                        }))}
-                        placeholder="Enter your question"
-                        className="mt-2"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="timeLimit">Time Limit (seconds)</Label>
-                      <Input
-                        id="timeLimit"
-                        type="number"
-                        min={30}
-                        max={300}
-                        value={currentQuestion.timeLimit}
-                        onChange={(e) => setCurrentQuestion(prev => ({
-                          ...prev,
-                          timeLimit: parseInt(e.target.value) || 60
-                        }))}
-                        className="mt-2"
-                      />
+          <div className="bg-white rounded-lg border border-gray-100">
+            <div className="p-4 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Timer className="w-5 h-5 text-blue-600 mr-2" />
+                  <h3 className="font-semibold text-gray-900">Questions</h3>
+                </div>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="border-blue-200 hover:border-blue-300">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Question
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Add New Question</DialogTitle>
+                      <DialogDescription>
+                        Create a new question for your test. Questions must have content and a time limit between 30-300 seconds.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="question">Question Content</Label>
+                        <Textarea
+                          id="question"
+                          value={currentQuestion.content}
+                          onChange={(e) => setCurrentQuestion(prev => ({
+                            ...prev,
+                            content: e.target.value
+                          }))}
+                          placeholder="Enter your question"
+                          className="h-32"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="timeLimit">Time Limit (seconds)</Label>
+                        <Input
+                          id="timeLimit"
+                          type="number"
+                          min={30}
+                          max={300}
+                          value={currentQuestion.timeLimit}
+                          onChange={(e) => setCurrentQuestion(prev => ({
+                            ...prev,
+                            timeLimit: parseInt(e.target.value) || 60
+                          }))}
+                        />
+                      </div>
                     </div>
                     {error && (
-                      <Alert variant="destructive">
+                      <Alert variant="destructive" className="mt-4">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>{error}</AlertDescription>
                       </Alert>
                     )}
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={addQuestion} disabled={isSubmitting}>
-                      Add Question
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter className="mt-6">
+                      <Button onClick={addQuestion} disabled={isSubmitting}>
+                        Add Question
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
-            <AnimatePresence>
-              {test.questions.map((question, index) => (
-                <motion.div
-                  key={question.id}
-                  variants={itemVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit={{ opacity: 0, x: 20 }}
-                  className="bg-secondary/20 p-4 rounded-lg space-y-2"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <p className="font-medium">Question {question.orderIndex}</p>
-                      <p className="text-sm text-muted-foreground">{question.content}</p>
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        <span>{question.timeLimit} seconds</span>
+            <div className="p-4">
+              <AnimatePresence>
+                {test.questions.map((question, index) => (
+                  <motion.div
+                    key={question.id}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="bg-gray-50 rounded-lg p-4 mb-4 last:mb-0"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <Badge className="bg-blue-100 text-blue-700 mr-2">
+                            Question {question.orderIndex}
+                          </Badge>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <Clock className="w-4 h-4 mr-1" />
+                            {question.timeLimit} seconds
+                          </div>
+                        </div>
+                        <p className="text-gray-700">{question.content}</p>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeQuestion(index)}
+                        className="text-gray-400 hover:text-red-500"
+                        disabled={isSubmitting}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeQuestion(index)}
-                      disabled={isSubmitting}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {test.questions.length === 0 && (
+                <Alert>
+                  <AlertDescription>
+                    No questions added yet. Click the "Add Question" button to get started.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
           </div>
+
+          <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center space-x-2">
+              {accessCode && (
+                <div className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-3 py-2 rounded">
+                  <Code className="w-4 h-4" />
+                  <span className="font-medium">Access Code: {accessCode}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => saveTest('DRAFT')}
+                disabled={isSubmitting}
+                className="border-blue-200 hover:border-blue-300"
+              >
+                <Archive className="w-4 h-4 mr-2" />
+                Save Draft
+              </Button>
+              <Button
+                onClick={() => saveTest('ACTIVE')}
+                disabled={isSubmitting}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save & Publish
+              </Button>
+            </div>
+          </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <div className="flex items-center space-x-2">
-            {accessCode && (
-              <div className="flex items-center space-x-2">
-                <Code className="w-4 h-4" />
-                <span>Access Code: {accessCode}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => saveTest('DRAFT')}
-              disabled={isSubmitting}
-            >
-              <Archive className="w-4 h-4 mr-2" />
-              Save Draft
-            </Button>
-            <Button
-              onClick={() => saveTest('ACTIVE')}
-              disabled={isSubmitting}
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save & Publish
-            </Button>
-          </div>
-        </CardFooter>
       </Card>
-
-      {error && (
-        <Alert variant="destructive" className="mt-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {test.questions.length === 0 && !error && (
-        <Alert>
-          <AlertDescription>
-            No questions added yet. Click the "Add Question" button to get started.
-          </AlertDescription>
-        </Alert>
-      )}
     </motion.div>
   );
 };
